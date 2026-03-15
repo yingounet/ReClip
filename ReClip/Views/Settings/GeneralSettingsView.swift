@@ -13,13 +13,6 @@ struct GeneralSettingsView: View {
                 LaunchAtLogin.Toggle("开机自动启动")
                 
                 Toggle("显示在 Dock", isOn: $settings.showInDock)
-                    .onChange(of: settings.showInDock) { _, newValue in
-                        if newValue {
-                            NSApp.setActivationPolicy(.regular)
-                        } else {
-                            NSApp.setActivationPolicy(.accessory)
-                        }
-                    }
             }
             
             Section("行为") {
@@ -41,6 +34,20 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            // 监听 showInDock 变化
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("ShowInDockChanged"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                if settings.showInDock {
+                    NSApp.setActivationPolicy(.regular)
+                } else {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
     }
 }
 

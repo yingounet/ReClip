@@ -12,9 +12,6 @@ struct MainWindowView: View {
             // 搜索栏
             SearchBar(text: $viewModel.searchText)
                 .focused($isSearchFocused)
-                .onChange(of: viewModel.isSearchFocused) { _, newValue in
-                    isSearchFocused = newValue
-                }
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
@@ -54,7 +51,7 @@ struct MainWindowView: View {
                             }
                         }
                     }
-                    .onChange(of: viewModel.selectedIndex) { _, newIndex in
+                    .onChange(of: viewModel.selectedIndex) { newIndex in
                         if let item = viewModel.selectedItem() {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 proxy.scrollTo(item.id, anchor: .center)
@@ -77,54 +74,6 @@ struct MainWindowView: View {
                 .stroke(Color.primary.opacity(0.1), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-        .onKeyPress(.upArrow) {
-            viewModel.moveUp()
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            viewModel.moveDown()
-            return .handled
-        }
-        .onKeyPress(.return) {
-            viewModel.pasteSelected()
-            return .handled
-        }
-        .onKeyPress(.escape) {
-            viewModel.hideWindow()
-            return .handled
-        }
-        .onKeyPress(.delete) {
-            viewModel.deleteSelected()
-            return .handled
-        }
-        .onKeyPress(.backspace) {
-            viewModel.deleteSelected()
-            return .handled
-        }
-        .onKeyPress("k") {
-            viewModel.moveUp()
-            return .handled
-        }
-        .onKeyPress("j") {
-            viewModel.moveDown()
-            return .handled
-        }
-        .onKeyPress("g") {
-            viewModel.moveToTop()
-            return .handled
-        }
-        .onKeyPress("G") {
-            viewModel.moveToBottom()
-            return .handled
-        }
-        .onKeyPress(" ") {
-            viewModel.showSelectedDetail()
-            return .handled
-        }
-        .onKeyPress(.space) {
-            viewModel.showSelectedDetail()
-            return .handled
-        }
         .sheet(isPresented: $viewModel.showDetailView) {
             if let item = viewModel.selectedDetailItem {
                 DetailView(item: item)
@@ -154,7 +103,7 @@ struct ClipContextMenu: View {
             Button("粘贴到前台应用") {
                 onPaste()
             }
-            .keyboardShortcut(.return, modifiers: [])
+            .keyboardShortcut(.defaultAction)
             
             Button("查看详情") {
                 onShowDetail?()

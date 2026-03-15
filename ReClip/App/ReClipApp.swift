@@ -8,8 +8,10 @@ struct ReClipApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
-        Settings {
+        WindowGroup {
             SettingsView()
         }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 500, height: 400)
     }
 }

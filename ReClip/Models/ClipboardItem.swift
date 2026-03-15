@@ -69,32 +69,32 @@ extension ClipboardItem: FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "clipboard_items"
     
     enum Columns {
-        static let id = Column(CodingKeys.id)
-        static let timestamp = Column(CodingKeys.timestamp)
-        static let appBundleId = Column(CodingKeys.appBundleId)
-        static let appName = Column(CodingKeys.appName)
-        static let dataType = Column(CodingKeys.dataType)
-        static let contentPreview = Column(CodingKeys.contentPreview)
-        static let dataHash = Column(CodingKeys.dataHash)
-        static let textContent = Column(CodingKeys.textContent)
-        static let imagePath = Column(CodingKeys.imagePath)
-        static let filePaths = Column(CodingKeys.filePaths)
-        static let isFavorite = Column(CodingKeys.isFavorite)
+        static let id = Column("id")
+        static let timestamp = Column("timestamp")
+        static let appBundleId = Column("appBundleId")
+        static let appName = Column("appName")
+        static let dataType = Column("dataType")
+        static let contentPreview = Column("contentPreview")
+        static let dataHash = Column("dataHash")
+        static let textContent = Column("textContent")
+        static let imagePath = Column("imagePath")
+        static let filePaths = Column("filePaths")
+        static let isFavorite = Column("isFavorite")
     }
     
     init(row: Row) {
-        id = row[CodingKeys.id]
-        timestamp = row[CodingKeys.timestamp]
-        appBundleId = row[CodingKeys.appBundleId]
-        appName = row[CodingKeys.appName]
-        dataType = ContentType(rawValue: row[CodingKeys.dataType]) ?? .text
-        contentPreview = row[CodingKeys.contentPreview]
-        dataHash = row[CodingKeys.dataHash]
-        textContent = row[CodingKeys.textContent]
-        imagePath = row[CodingKeys.imagePath]
-        isFavorite = row[CodingKeys.isFavorite]
+        id = row["id"]
+        timestamp = row["timestamp"]
+        appBundleId = row["appBundleId"]
+        appName = row["appName"]
+        dataType = ContentType(rawValue: row["dataType"]) ?? .text
+        contentPreview = row["contentPreview"]
+        dataHash = row["dataHash"]
+        textContent = row["textContent"]
+        imagePath = row["imagePath"]
+        isFavorite = row["isFavorite"]
         
-        if let filePathsJSON = row[CodingKeys.filePaths] as? String,
+        if let filePathsJSON: String = row["filePaths"],
            let data = filePathsJSON.data(using: .utf8),
            let paths = try? JSONDecoder().decode([String].self, from: data) {
             filePaths = paths
@@ -102,21 +102,21 @@ extension ClipboardItem: FetchableRecord, MutablePersistableRecord {
     }
     
     func encode(to container: inout PersistenceContainer) {
-        container[CodingKeys.id] = id
-        container[CodingKeys.timestamp] = timestamp
-        container[CodingKeys.appBundleId] = appBundleId
-        container[CodingKeys.appName] = appName
-        container[CodingKeys.dataType] = dataType.rawValue
-        container[CodingKeys.contentPreview] = contentPreview
-        container[CodingKeys.dataHash] = dataHash
-        container[CodingKeys.textContent] = textContent
-        container[CodingKeys.imagePath] = imagePath
-        container[CodingKeys.isFavorite] = isFavorite
+        container["id"] = id
+        container["timestamp"] = timestamp
+        container["appBundleId"] = appBundleId
+        container["appName"] = appName
+        container["dataType"] = dataType.rawValue
+        container["contentPreview"] = contentPreview
+        container["dataHash"] = dataHash
+        container["textContent"] = textContent
+        container["imagePath"] = imagePath
+        container["isFavorite"] = isFavorite
         
         if let filePaths = filePaths,
            let data = try? JSONEncoder().encode(filePaths),
            let json = String(data: data, encoding: .utf8) {
-            container[CodingKeys.filePaths] = json
+            container["filePaths"] = json
         }
     }
 }

@@ -10,7 +10,7 @@ let package = Package(
         .executable(name: "ReClip", targets: ["ReClip"])
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift", from: "6.24.0"),
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "2.0.0"),
         .package(url: "https://github.com/sindresorhus/LaunchAtLogin", from: "5.0.0"),
     ],
@@ -26,7 +26,8 @@ let package = Package(
         ),
         .testTarget(
             name: "ReClipTests",
-            dependencies: ["ReClip"]
+            dependencies: ["ReClip"],
+            path: "Tests/ReClipTests"
         ),
     ]
 )

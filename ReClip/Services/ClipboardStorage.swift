@@ -72,7 +72,8 @@ final class ClipboardStorage: ObservableObject {
     func insert(_ item: ClipboardItem) {
         do {
             try dbQueue?.write { db in
-                try item.insert(db)
+                var newItem = item
+                try newItem.insert(db)
             }
             loadItems()
             Logger.debug("Inserted item: \(item.id)")
@@ -303,7 +304,7 @@ final class ClipboardStorage: ObservableObject {
             let importedItems = try JSONDecoder().decode([ClipboardItem].self, from: data)
             
             try dbQueue?.write { db in
-                for item in importedItems {
+                for var item in importedItems {
                     try item.insert(db)
                 }
             }
