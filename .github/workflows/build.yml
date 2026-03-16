@@ -69,7 +69,12 @@ jobs:
     - name: Get version
       id: version
       run: |
-        VERSION=${GITHUB_REF_NAME#v}
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF_NAME#v}
+        else
+          VERSION="dev-$(echo ${{ github.sha }} | cut -c1-7)"
+        fi
+        VERSION=$(echo "$VERSION" | tr '/:' '_')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
     - name: Install create-dmg
@@ -87,13 +92,18 @@ jobs:
           --hide-extension "${{ env.APP_NAME }}.app" \
           --app-drop-link 480 170 \
           "${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg" \
-          "${{ env.APP_NAME }}.app"
+          "${{ env.APP_NAME }}.app" || {
+            echo "DMG creation failed, creating ZIP instead"
+            zip -r "${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.zip" "${{ env.APP_NAME }}.app"
+          }
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.APP_NAME }}-macOS
-        path: ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg
+        path: |
+          ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.dmg
+          ${{ env.APP_NAME }}-${{ steps.version.outputs.version }}.zip
     
   release:
     needs: build
@@ -108,7 +118,9 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ReClip-*.dmg
+        files: |
+          ReClip-*.dmg
+          ReClip-*.zip
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
