@@ -22,11 +22,27 @@ jobs:
     - name: Select Xcode
       run: |
         set -euo pipefail
-        echo "Using default developer directory: $(xcode-select -p)"
+        # Select an Xcode that provides Swift 6 (for `// swift-tools-version: 6.0.0` in Package.swift).
+        # GitHub-hosted runners may not have Xcode paths fixed to a single version.
+        XCODE_PATH="$(
+          (ls -d /Applications/Xcode_16*.app 2>/dev/null || true) | sort | tail -n 1
+        )"
+        if [[ -z "${XCODE_PATH}" ]]; then
+          XCODE_PATH="$(
+            (ls -d /Applications/Xcode*.app 2>/dev/null || true) | sort | tail -n 1
+          )"
+        fi
+        if [[ -z "$XCODE_PATH" ]]; then
+          echo "No Xcode installation found under /Applications" >&2
+          exit 1
+        fi
+        echo "Selected Xcode: $XCODE_PATH"
+        sudo xcode-select -s "$XCODE_PATH"
         xcodebuild -version
+        xcrun swift --version
     
     - name: Build
-      run: swift build -c release
+      run: xcrun swift build -c release
     
     - name: Create app bundle
       run: |
