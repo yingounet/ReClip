@@ -4,6 +4,7 @@
 import Foundation
 import AppKit
 
+@MainActor
 final class PreviewGenerator {
     
     // MARK: - Singleton

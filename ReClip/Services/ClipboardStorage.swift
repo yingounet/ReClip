@@ -5,6 +5,7 @@ import Foundation
 import GRDB
 import Combine
 
+@MainActor
 final class ClipboardStorage: ObservableObject {
     @Published private(set) var items: [ClipboardItem] = []
     @Published private(set) var totalCount: Int = 0

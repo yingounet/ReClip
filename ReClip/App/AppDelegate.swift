@@ -3,6 +3,7 @@
 
 import AppKit
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     private var windowController: MainWindowController?

@@ -5,6 +5,7 @@ import Foundation
 import AppKit
 import Combine
 
+@MainActor
 final class ClipboardMonitor: ObservableObject {
     @Published private(set) var isMonitoring = false
     @Published private(set) var lastCopiedApp: String?
@@ -32,7 +33,11 @@ final class ClipboardMonitor: ObservableObject {
     }
     
     deinit {
-        stopMonitoring()
+        // `deinit` 不是主线程隔离上下文；这里不要同步访问 `Timer`，
+        // 通过主线程任务异步清理即可。
+        Task { @MainActor [weak self] in
+            self?.stopMonitoring()
+        }
     }
     
     // MARK: - Public Methods

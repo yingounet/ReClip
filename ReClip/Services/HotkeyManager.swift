@@ -4,6 +4,7 @@
 import Foundation
 import KeyboardShortcuts
 
+@MainActor
 final class HotkeyManager {
     var onShowMainWindow: (() -> Void)?
     

@@ -3,8 +3,10 @@
 
 import Foundation
 import AppKit
+@preconcurrency import ApplicationServices
 import CoreGraphics
 
+@MainActor
 final class PasteService {
     private let pasteboard = NSPasteboard.general
     

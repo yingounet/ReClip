@@ -4,6 +4,7 @@
 import Foundation
 import Combine
 
+@MainActor
 final class Settings: ObservableObject {
     // MARK: - General
     @Published var launchAtLogin: Bool = true
