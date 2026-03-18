@@ -22,7 +22,11 @@ let package = Package(
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts"),
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin"),
             ],
-            path: "ReClip"
+            path: "ReClip",
+            exclude: ["Info.plist"],
+            resources: [
+                .copy("Resources/AppIcon.icns")
+            ]
         ),
         .testTarget(
             name: "ReClipTests",

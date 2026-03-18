@@ -50,7 +50,11 @@ final class ClipboardMonitor: ObservableObject {
         pollingInterval = settings.pollingInterval
         
         timer = Timer.scheduledTimer(withTimeInterval: pollingInterval, repeats: true) { [weak self] _ in
-            self?.checkForChanges()
+            guard let self else { return }
+            // `Timer` 回调不是主线程隔离上下文；用 Task 切回 MainActor 执行。
+            Task { @MainActor in
+                self.checkForChanges()
+            }
         }
         
         if let timer = timer {

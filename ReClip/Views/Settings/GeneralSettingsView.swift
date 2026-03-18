@@ -35,12 +35,18 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .padding()
         .onAppear {
-            // 监听 showInDock 变化
-            NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("ShowInDockChanged"),
-                object: nil,
-                queue: .main
-            ) { _ in
+            // 视图出现时，同步一次 Dock 显示策略（应用启动时也会设置，但设置页切换后需要立刻生效）。
+            Task { @MainActor in
+                if settings.showInDock {
+                    NSApp.setActivationPolicy(.regular)
+                } else {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
+        .onChange(of: settings.showInDock) { _ in
+            // 避免在 Swift 6 的 Sendable 闭包上下文里直接触碰 MainActor 隔离状态。
+            Task { @MainActor in
                 if settings.showInDock {
                     NSApp.setActivationPolicy(.regular)
                 } else {

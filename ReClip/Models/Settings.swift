@@ -107,7 +107,9 @@ final class Settings: ObservableObject {
     
     private func setupAutoSave() {
         $launchAtLogin.sink { [weak self] in self?.save($0, key: Keys.launchAtLogin) }.store(in: &cancellables)
-        $showInDock.sink { [weak self] in self?.save($0, key: Keys.showInDock) }.store(in: &cancellables)
+        $showInDock.sink { [weak self] newValue in
+            self?.save(newValue, key: Keys.showInDock)
+        }.store(in: &cancellables)
         $pollingInterval.sink { [weak self] in self?.save($0, key: Keys.pollingInterval) }.store(in: &cancellables)
         $autoPaste.sink { [weak self] in self?.save($0, key: Keys.autoPaste) }.store(in: &cancellables)
         $maxHistoryItems.sink { [weak self] in self?.save($0, key: Keys.maxHistoryItems) }.store(in: &cancellables)
