@@ -15,7 +15,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // 初始化服务
         _ = ClipboardStorage.shared
-        _ = ClipboardMonitor.shared
+        ClipboardMonitor.shared.startMonitoring()
         
         checkPermissions()
     }
