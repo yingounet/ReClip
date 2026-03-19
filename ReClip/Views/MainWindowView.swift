@@ -74,6 +74,18 @@ struct MainWindowView: View {
                 .stroke(Color.primary.opacity(0.1), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .onChange(of: viewModel.isWindowVisible) { visible in
+            if visible {
+                DispatchQueue.main.async {
+                    isSearchFocused = true
+                }
+            }
+        }
+        .onAppear {
+            if viewModel.isWindowVisible {
+                isSearchFocused = true
+            }
+        }
         .sheet(isPresented: $viewModel.showDetailView) {
             if let item = viewModel.selectedDetailItem {
                 DetailView(item: item)

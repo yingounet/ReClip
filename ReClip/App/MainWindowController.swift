@@ -118,6 +118,22 @@ class MainWindowController: NSWindowController {
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         
+        // ↑ ↓ 方向键选择
+        if event.keyCode == 126 {
+            viewModel.moveUp()
+            return true
+        }
+        if event.keyCode == 125 {
+            viewModel.moveDown()
+            return true
+        }
+        
+        // ↵ 回车确认并粘贴
+        if event.keyCode == 36, !flags.contains(.command) {
+            viewModel.pasteSelected()
+            return true
+        }
+        
         // ⌘1-9 快速选择
         if flags.contains(.command), let number = Int(event.characters ?? ""), (1...9).contains(number) {
             viewModel.selectQuick(number - 1)
