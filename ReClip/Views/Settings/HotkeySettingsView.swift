@@ -14,6 +14,7 @@ struct HotkeySettingsView: View {
                     KeyboardShortcuts.Recorder(for: .showMainWindow) {
                         Text("点击设置快捷键")
                     }
+                    .frame(minWidth: 180, minHeight: 24)
                 }
             }
             
