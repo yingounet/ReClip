@@ -7,6 +7,15 @@ struct MainWindowView: View {
     @ObservedObject var viewModel: MainViewModel
     @FocusState private var isSearchFocused: Bool
     
+    private func performScrollIfNeeded(proxy: ScrollViewProxy) {
+        guard viewModel.shouldScrollToSelection,
+              let item = viewModel.selectedItem() else { return }
+        viewModel.shouldScrollToSelection = false
+        withAnimation(.easeInOut(duration: 0.2)) {
+            proxy.scrollTo(item.id, anchor: .center)
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索栏
@@ -51,12 +60,11 @@ struct MainWindowView: View {
                             }
                         }
                     }
-                    .onChange(of: viewModel.selectedIndex) { newIndex in
-                        if let item = viewModel.selectedItem() {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                proxy.scrollTo(item.id, anchor: .center)
-                            }
-                        }
+                    .onChange(of: viewModel.selectedIndex) { _ in
+                        performScrollIfNeeded(proxy: proxy)
+                    }
+                    .onChange(of: viewModel.shouldScrollToSelection) { _ in
+                        performScrollIfNeeded(proxy: proxy)
                     }
                 }
             }

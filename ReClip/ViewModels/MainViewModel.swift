@@ -19,6 +19,8 @@ final class MainViewModel: ObservableObject {
     @Published var isSearchFocused: Bool = true
     @Published var selectedDetailItem: ClipboardItem? = nil
     @Published var showDetailView: Bool = false
+    /// 仅键盘导航时置为 true，用于触发 scrollTo；鼠标悬停不触发滚动
+    @Published var shouldScrollToSelection: Bool = false
     
     // MARK: - Private Properties
     private let storage: ClipboardStorage
@@ -97,6 +99,7 @@ final class MainViewModel: ObservableObject {
         selectedIndex = 0
         searchText = ""
         isSearchFocused = true
+        shouldScrollToSelection = true  // 唤起时滚动到最新（第一条）
     }
     
     func hideWindow() {
@@ -119,28 +122,33 @@ final class MainViewModel: ObservableObject {
     
     func moveUp() {
         if selectedIndex > 0 {
+            shouldScrollToSelection = true
             selectedIndex -= 1
         }
     }
     
     func moveDown() {
         if selectedIndex < filteredItems.count - 1 {
+            shouldScrollToSelection = true
             selectedIndex += 1
         }
     }
     
     func moveToTop() {
+        shouldScrollToSelection = true
         selectedIndex = 0
     }
     
     func moveToBottom() {
         if !filteredItems.isEmpty {
+            shouldScrollToSelection = true
             selectedIndex = filteredItems.count - 1
         }
     }
     
     func selectIndex(_ index: Int) {
         guard index >= 0 && index < filteredItems.count else { return }
+        shouldScrollToSelection = true
         selectedIndex = index
     }
     

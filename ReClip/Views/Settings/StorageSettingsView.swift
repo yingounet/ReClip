@@ -60,7 +60,7 @@ struct StorageSettingsView: View {
                     panel.allowsMultipleSelection = false
                     
                     if panel.runModal() == .OK, let url = panel.url {
-                        let count = storage.importFromJSON(url)
+                        _ = storage.importFromJSON(url)
                         // Show result
                     }
                 }
