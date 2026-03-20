@@ -23,7 +23,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/ReClip.git
+git clone https://github.com/yingounet/ReClip.git
 cd ReClip
 
 # 构建项目

@@ -10,7 +10,7 @@ on:
 
 env:
   APP_NAME: ReClip
-  BUNDLE_ID: com.reclip.app
+  BUNDLE_ID: net.yingou.reclip
 
 jobs:
   build:

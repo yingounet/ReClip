@@ -6,7 +6,7 @@ import Foundation
 enum Constants {
     // MARK: - App Info
     static let appName = "ReClip"
-    static let bundleIdentifier = "com.yourname.reclip"
+    static let bundleIdentifier = "net.yingou.reclip"
     
     // MARK: - Clipboard Monitor
     enum Monitor {
