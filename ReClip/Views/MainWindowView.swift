@@ -25,16 +25,16 @@ struct MainWindowView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(Array(viewModel.filteredItems.enumerated()), id: \.element.id) { index, item in
+                            ForEach(viewModel.filteredItems) { item in
                                 ClipRowView(item: item, isSelected: viewModel.isSelected(item))
                                     .id(item.id)
                                     .onTapGesture {
-                                        viewModel.selectIndex(index)
+                                        viewModel.selectItem(item)
                                         viewModel.pasteSelected()
                                     }
                                     .onHover { isHovered in
                                         if isHovered {
-                                            viewModel.selectIndex(index)
+                                            viewModel.selectItem(item)
                                         }
                                     }
                                     .contextMenu {

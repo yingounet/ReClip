@@ -18,6 +18,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ClipboardMonitor.shared.startMonitoring()
         
         checkPermissions()
+        
+        // 预创建主窗口，首次热键时无需同步创建
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard self?.windowController == nil else { return }
+            self?.windowController = MainWindowController()
+            self?.windowController?.window?.orderOut(nil)
+        }
     }
     
     func applicationWillTerminate(_ notification: Notification) {

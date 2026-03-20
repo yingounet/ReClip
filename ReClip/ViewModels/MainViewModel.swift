@@ -43,7 +43,6 @@ final class MainViewModel: ObservableObject {
     
     private func setupBindings() {
         storage.$items
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] items in
                 self?.applyFilter(items: items)
             }
@@ -57,8 +56,13 @@ final class MainViewModel: ObservableObject {
             .store(in: &cancellables)
         
         hotkeyManager.onShowMainWindow = { [weak self] in
-            Task { @MainActor in
-                self?.toggleWindow()
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if self.isWindowVisible {
+                    self.hideWindow()
+                } else {
+                    (NSApp.delegate as? AppDelegate)?.showMainWindow()
+                }
             }
         }
     }
@@ -70,10 +74,17 @@ final class MainViewModel: ObservableObject {
     private func applyFilter(items: [ClipboardItem]) {
         if searchText.isEmpty {
             filteredItems = items
+            adjustSelectedIndexIfNeeded()
         } else {
-            filteredItems = storage.search(query: searchText)
+            storage.searchAsync(query: searchText) { [weak self] results in
+                guard let self else { return }
+                self.filteredItems = results
+                self.adjustSelectedIndexIfNeeded()
+            }
         }
-        
+    }
+    
+    private func adjustSelectedIndexIfNeeded() {
         if selectedIndex >= filteredItems.count {
             selectedIndex = max(0, filteredItems.count - 1)
         }
@@ -86,7 +97,6 @@ final class MainViewModel: ObservableObject {
         selectedIndex = 0
         searchText = ""
         isSearchFocused = true
-        loadItems()
     }
     
     func hideWindow() {
@@ -134,6 +144,12 @@ final class MainViewModel: ObservableObject {
         selectedIndex = index
     }
     
+    func selectItem(_ item: ClipboardItem) {
+        if let index = filteredItems.firstIndex(where: { $0.id == item.id }) {
+            selectedIndex = index
+        }
+    }
+    
     func isSelected(_ item: ClipboardItem) -> Bool {
         guard selectedIndex < filteredItems.count else { return false }
         return filteredItems[selectedIndex].id == item.id
@@ -151,7 +167,7 @@ final class MainViewModel: ObservableObject {
         
         hideWindow()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { [weak self] in
             self?.pasteService.copyAndPaste(item)
         }
     }
@@ -198,7 +214,7 @@ final class MainViewModel: ObservableObject {
     
     func pasteItem(_ item: ClipboardItem) {
         hideWindow()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { [weak self] in
             self?.pasteService.copyAndPaste(item)
         }
     }

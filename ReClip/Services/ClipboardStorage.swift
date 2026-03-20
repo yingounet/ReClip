@@ -12,6 +12,7 @@ final class ClipboardStorage: ObservableObject {
     
     private var dbQueue: DatabaseQueue?
     private let settings: Settings
+    private let dbWorker = DispatchQueue(label: "com.reclip.storage.db", qos: .userInitiated)
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Singleton
@@ -71,47 +72,61 @@ final class ClipboardStorage: ObservableObject {
     // MARK: - CRUD
     
     func insert(_ item: ClipboardItem) {
-        do {
-            try dbQueue?.write { db in
-                var newItem = item
-                try newItem.insert(db)
+        let queue = dbQueue
+        dbWorker.async { [weak self] in
+            do {
+                try queue?.write { db in
+                    var newItem = item
+                    try newItem.insert(db)
+                }
+                Logger.debug("Inserted item: \(item.id)")
+                Task { @MainActor in
+                    self?.loadItems()
+                }
+            } catch {
+                Logger.error("Failed to insert item: \(error)")
             }
-            loadItems()
-            Logger.debug("Inserted item: \(item.id)")
-        } catch {
-            Logger.error("Failed to insert item: \(error)")
         }
     }
     
     func delete(_ item: ClipboardItem) {
-        do {
-            // 删除关联图片
-            if let imagePath = item.imagePath {
-                let fullPath = Constants.applicationSupportURL().appendingPathComponent(imagePath).path
-                try? FileManager.default.removeItem(atPath: fullPath)
+        let queue = dbQueue
+        let imagePath = item.imagePath
+        dbWorker.async { [weak self] in
+            do {
+                if let imagePath, !imagePath.isEmpty {
+                    let fullPath = Constants.applicationSupportURL().appendingPathComponent(imagePath).path
+                    try? FileManager.default.removeItem(atPath: fullPath)
+                }
+                try queue?.write { db in
+                    _ = try item.delete(db)
+                }
+                Logger.debug("Deleted item: \(item.id)")
+                Task { @MainActor in
+                    self?.loadItems()
+                }
+            } catch {
+                Logger.error("Failed to delete item: \(error)")
             }
-            
-            try dbQueue?.write { db in
-                _ = try item.delete(db)
-            }
-            loadItems()
-            Logger.debug("Deleted item: \(item.id)")
-        } catch {
-            Logger.error("Failed to delete item: \(error)")
         }
     }
     
     func toggleFavorite(_ item: ClipboardItem) {
-        do {
-            var updatedItem = item
-            updatedItem.isFavorite = !item.isFavorite
-            
-            try dbQueue?.write { db in
-                try updatedItem.update(db)
+        let newFavorite = !item.isFavorite
+        let queue = dbQueue
+        dbWorker.async { [weak self] in
+            do {
+                try queue?.write { db in
+                    var copy = item
+                    copy.isFavorite = newFavorite
+                    try copy.update(db)
+                }
+                Task { @MainActor in
+                    self?.loadItems()
+                }
+            } catch {
+                Logger.error("Failed to toggle favorite: \(error)")
             }
-            loadItems()
-        } catch {
-            Logger.error("Failed to toggle favorite: \(error)")
         }
     }
     
@@ -145,45 +160,64 @@ final class ClipboardStorage: ObservableObject {
     // MARK: - Query
     
     private func loadItems() {
-        do {
-            items = try dbQueue?.read { db in
-                try ClipboardItem
-                    .order(ClipboardItem.Columns.timestamp.desc)
-                    .limit(settings.maxHistoryItems)
-                    .fetchAll(db)
-            } ?? []
-            
-            totalCount = try dbQueue?.read { db in
-                try ClipboardItem.fetchCount(db)
-            } ?? 0
-        } catch {
-            Logger.error("Failed to load items: \(error)")
-            items = []
+        let queue = dbQueue
+        let maxItems = settings.maxHistoryItems
+        dbWorker.async { [weak self] in
+            guard let self else { return }
+            do {
+                let fetchedItems: [ClipboardItem] = try queue?.read { db in
+                    try ClipboardItem
+                        .order(ClipboardItem.Columns.timestamp.desc)
+                        .limit(maxItems)
+                        .fetchAll(db)
+                } ?? []
+                let count = try queue?.read { db in
+                    try ClipboardItem.fetchCount(db)
+                } ?? 0
+                Task { @MainActor in
+                    self.items = fetchedItems
+                    self.totalCount = count
+                }
+            } catch {
+                Logger.error("Failed to load items: \(error)")
+                Task { @MainActor in
+                    self.items = []
+                }
+            }
         }
     }
     
-    func search(query: String) -> [ClipboardItem] {
+    func searchAsync(query: String, completion: @escaping ([ClipboardItem]) -> Void) {
         guard !query.isEmpty else {
-            return items
+            completion(items)
+            return
         }
-        
         let pattern = "%\(query)%"
-        
-        do {
-            return try dbQueue?.read { db in
-                try ClipboardItem
-                    .filter(
-                        ClipboardItem.Columns.contentPreview.like(pattern) ||
-                        ClipboardItem.Columns.appName.like(pattern) ||
-                        ClipboardItem.Columns.textContent.like(pattern)
-                    )
-                    .order(ClipboardItem.Columns.timestamp.desc)
-                    .limit(100)
-                    .fetchAll(db)
-            } ?? []
-        } catch {
-            Logger.error("Search failed: \(error)")
-            return []
+        let queue = dbQueue
+        let currentItems = items
+        dbWorker.async {
+            do {
+                let result = try queue?.read { db in
+                    try ClipboardItem
+                        .filter(
+                            ClipboardItem.Columns.contentPreview.like(pattern) ||
+                            ClipboardItem.Columns.appName.like(pattern) ||
+                            ClipboardItem.Columns.textContent.like(pattern)
+                        )
+                        .order(ClipboardItem.Columns.timestamp.desc)
+                        .limit(100)
+                        .fetchAll(db)
+                } ?? []
+                let itemsToReturn = result
+                DispatchQueue.main.async {
+                    completion(itemsToReturn)
+                }
+            } catch {
+                Logger.error("Search failed: \(error)")
+                DispatchQueue.main.async {
+                    completion(currentItems)
+                }
+            }
         }
     }
     
@@ -204,74 +238,76 @@ final class ClipboardStorage: ObservableObject {
     // MARK: - Cleanup
     
     func cleanup() {
-        do {
-            try dbQueue?.write { db in
-                // 1. 按时间清理（非收藏）
-                if settings.retentionDays > 0 {
-                    let cutoff = Date().addingTimeInterval(-Double(settings.retentionDays) * 86400)
-                    let oldItems = try ClipboardItem
-                        .filter(ClipboardItem.Columns.timestamp < cutoff)
-                        .filter(ClipboardItem.Columns.isFavorite == false)
-                        .fetchAll(db)
-                    
-                    for item in oldItems {
-                        try item.delete(db)
-                        deleteImageFile(for: item)
+        let queue = dbQueue
+        let retentionDays = settings.retentionDays
+        let maxHistoryItems = settings.maxHistoryItems
+        dbWorker.async { [weak self] in
+            guard let self else { return }
+            do {
+                try queue?.write { db in
+                    if retentionDays > 0 {
+                        let cutoff = Date().addingTimeInterval(-Double(retentionDays) * 86400)
+                        let oldItems = try ClipboardItem
+                            .filter(ClipboardItem.Columns.timestamp < cutoff)
+                            .filter(ClipboardItem.Columns.isFavorite == false)
+                            .fetchAll(db)
+                        for item in oldItems {
+                            try item.delete(db)
+                            self.deleteImageFile(for: item)
+                        }
+                        Logger.info("Cleaned up \(oldItems.count) old items")
                     }
-                    
-                    Logger.info("Cleaned up \(oldItems.count) old items")
-                }
-                
-                // 2. 按数量清理（非收藏）
-                let total = try ClipboardItem
-                    .filter(ClipboardItem.Columns.isFavorite == false)
-                    .fetchCount(db)
-                
-                if total > settings.maxHistoryItems {
-                    let toDelete = total - settings.maxHistoryItems
-                    let oldItems = try ClipboardItem
+                    let total = try ClipboardItem
                         .filter(ClipboardItem.Columns.isFavorite == false)
-                        .order(ClipboardItem.Columns.timestamp.asc)
-                        .limit(toDelete)
-                        .fetchAll(db)
-                    
-                    for item in oldItems {
-                        try item.delete(db)
-                        deleteImageFile(for: item)
+                        .fetchCount(db)
+                    if total > maxHistoryItems {
+                        let toDelete = total - maxHistoryItems
+                        let oldItems = try ClipboardItem
+                            .filter(ClipboardItem.Columns.isFavorite == false)
+                            .order(ClipboardItem.Columns.timestamp.asc)
+                            .limit(toDelete)
+                            .fetchAll(db)
+                        for item in oldItems {
+                            try item.delete(db)
+                            self.deleteImageFile(for: item)
+                        }
+                        Logger.info("Cleaned up \(oldItems.count) excess items")
                     }
-                    
-                    Logger.info("Cleaned up \(oldItems.count) excess items")
                 }
+                Task { @MainActor in
+                    self.loadItems()
+                }
+            } catch {
+                Logger.error("Cleanup failed: \(error)")
             }
-            
-            loadItems()
-        } catch {
-            Logger.error("Cleanup failed: \(error)")
         }
     }
     
-    private func deleteImageFile(for item: ClipboardItem) {
+    private nonisolated func deleteImageFile(for item: ClipboardItem) {
         guard let imagePath = item.imagePath else { return }
         let fullPath = Constants.applicationSupportURL().appendingPathComponent(imagePath).path
         try? FileManager.default.removeItem(atPath: fullPath)
     }
     
     func clearAll() {
-        do {
-            try dbQueue?.write { db in
-                _ = try ClipboardItem.deleteAll(db)
+        let queue = dbQueue
+        dbWorker.async { [weak self] in
+            guard let self else { return }
+            do {
+                try queue?.write { db in
+                    _ = try ClipboardItem.deleteAll(db)
+                }
+                let imagesDir = Constants.imagesDirectoryURL()
+                if FileManager.default.fileExists(atPath: imagesDir.path) {
+                    try FileManager.default.removeItem(at: imagesDir)
+                }
+                Task { @MainActor in
+                    self.loadItems()
+                }
+                Logger.info("Cleared all items")
+            } catch {
+                Logger.error("Failed to clear all: \(error)")
             }
-            
-            // 删除所有图片
-            let imagesDir = Constants.imagesDirectoryURL()
-            if FileManager.default.fileExists(atPath: imagesDir.path) {
-                try FileManager.default.removeItem(at: imagesDir)
-            }
-            
-            loadItems()
-            Logger.info("Cleared all items")
-        } catch {
-            Logger.error("Failed to clear all: \(error)")
         }
     }
     
@@ -303,16 +339,25 @@ final class ClipboardStorage: ObservableObject {
         do {
             let data = try Data(contentsOf: url)
             let importedItems = try JSONDecoder().decode([ClipboardItem].self, from: data)
-            
-            try dbQueue?.write { db in
-                for var item in importedItems {
-                    try item.insert(db)
+            let queue = dbQueue
+            let count = importedItems.count
+            dbWorker.async { [weak self] in
+                guard let self else { return }
+                do {
+                    try queue?.write { db in
+                        for var item in importedItems {
+                            try item.insert(db)
+                        }
+                    }
+                    Task { @MainActor in
+                        self.loadItems()
+                    }
+                    Logger.info("Imported \(count) items")
+                } catch {
+                    Logger.error("Import failed: \(error)")
                 }
             }
-            
-            loadItems()
-            Logger.info("Imported \(importedItems.count) items")
-            return importedItems.count
+            return count
         } catch {
             Logger.error("Import failed: \(error)")
             return 0

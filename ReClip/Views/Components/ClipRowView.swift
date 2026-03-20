@@ -56,20 +56,7 @@ struct ClipRowView: View {
                 .cornerRadius(6)
             
         case .image:
-            if let thumbnail = PreviewGenerator.shared.generateThumbnail(for: item.imagePath ?? "") {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(6)
-            } else {
-                Image(systemName: "photo")
-                    .font(.system(size: 20))
-                    .foregroundColor(.green)
-                    .frame(width: 32, height: 32)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(6)
-            }
+            AsyncThumbnailView(imagePath: item.imagePath ?? "")
             
         case .file:
             if let filePaths = item.filePaths, let firstPath = filePaths.first {
